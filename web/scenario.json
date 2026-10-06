@@ -1,0 +1,169 @@
+{
+ "service": "renewable-grid-twin",
+ "run": "demo-1",
+ "tokens": {
+  "manager": "grid-control_manager-demo",
+  "operator": "grid-operator-demo",
+  "viewer": "grid-viewer-demo"
+ },
+ "steps": [
+  {
+   "title": "A 118-bus network at 10:00",
+   "say": "An invented transmission network: 118 buses in four regions, 180 lines, eight thermal units in the metro and east, 1.3 GW of solar in the west, 0.9 GW of wind in the north, six four-hour batteries, load on 90 buses. Sixty days of hourly telemetry train the forecasts, which are scored on the last ten days against persistence and the physical formula. The day-ahead forecast promises a clear afternoon in the west and strong wind in the north. A DC power flow on the latest telemetry shows every line within its limit.",
+   "calls": [
+    {
+     "key": "load",
+     "as": "manager",
+     "method": "POST",
+     "path": "/v1/grid:load",
+     "body": {
+      "seed": 17
+     }
+    },
+    {
+     "key": "state0",
+     "as": "viewer",
+     "method": "GET",
+     "path": "/v1/grid/state"
+    }
+   ]
+  },
+  {
+   "title": "Noon: a cloud bank the forecast missed, and a line trips",
+   "say": "Two hours of SCADA arrive. From 11:00 a cloud bank sits over the solar region that no forecast saw. At 12:00 line 115 on the wind export corridor trips. The operator also tries to open a radial line for maintenance and is refused: it would island part of the network. Readings with an unknown asset, no timezone or an impossible value are refused one by one.",
+   "calls": [
+    {
+     "key": "poll",
+     "as": "operator",
+     "method": "POST",
+     "path": "/v1/telemetry:poll",
+     "body": {
+      "steps": 8
+     }
+    },
+    {
+     "key": "trip",
+     "as": "operator",
+     "method": "POST",
+     "path": "/v1/grid/lines/115/status",
+     "body": {
+      "status": "out",
+      "reason": "distance protection trip, phase-to-ground fault"
+     }
+    },
+    {
+     "key": "island",
+     "expect_error": true,
+     "as": "operator",
+     "method": "POST",
+     "path": "/v1/grid/lines/2/status",
+     "body": {
+      "status": "out",
+      "reason": "planned maintenance"
+     }
+    },
+    {
+     "key": "tele",
+     "as": "operator",
+     "method": "POST",
+     "path": "/v1/telemetry",
+     "body": {
+      "readings": [
+       {
+        "asset": "Solar 3",
+        "ts": "2026-07-14T11:50:00+00:00",
+        "value": 31.5
+       },
+       {
+        "asset": "Solar 99",
+        "ts": "2026-07-14T11:50:00+00:00",
+        "value": 10
+       },
+       {
+        "asset": "Wind 2",
+        "ts": "2026-07-14T11:50:00",
+        "value": 40
+       },
+       {
+        "asset": "Wind 4",
+        "ts": "2026-07-14T11:50:00+00:00",
+        "value": 900
+       }
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "title": "Forecast error, measured, and the overloaded corridor",
+   "say": "Over the last hour solar ran at a fraction of the day-ahead forecast; the intraday update scales the rest of the afternoon by that ratio, decaying back to the forecast. Load keeps its band. With the line out, the same power flow now shows the wind corridor carrying far more than its limit, and the N-1 scan ranks which further outage would make it worse and which would island buses.",
+   "calls": [
+    {
+     "key": "fc_ren",
+     "as": "operator",
+     "method": "POST",
+     "path": "/v1/forecast/renewables",
+     "body": {}
+    },
+    {
+     "key": "fc_load",
+     "as": "operator",
+     "method": "POST",
+     "path": "/v1/forecast/load",
+     "body": {
+      "store": false
+     }
+    },
+    {
+     "key": "state1",
+     "as": "viewer",
+     "method": "GET",
+     "path": "/v1/grid/state"
+    },
+    {
+     "key": "n1",
+     "as": "operator",
+     "method": "POST",
+     "path": "/v1/contingencies",
+     "body": {
+      "top": 10
+     }
+    }
+   ]
+  },
+  {
+   "title": "Optimize batteries and curtailment for the rest of the day",
+   "say": "A MILP to midnight on the intraday forecast and the post-outage network: thermal by cost, renewables up to availability, batteries that never charge and discharge at once, state of charge ending where it began, line limits through the PTDF added as they bind. Then every way of running the afternoon, scored on the true weather and true flows: network-blind with no battery, a battery scheduled on price, the operator's plan re-made every hour with and without batteries, and perfect knowledge.",
+   "calls": [
+    {
+     "key": "plan",
+     "as": "operator",
+     "method": "POST",
+     "path": "/v1/dispatch/optimize",
+     "body": {
+      "use_batteries": true,
+      "activate": true
+     }
+    },
+    {
+     "key": "plan_get",
+     "as": "viewer",
+     "method": "GET",
+     "path": "/v1/plans/{{plan.plan_id}}"
+    }
+   ]
+  },
+  {
+   "title": "The audit trail",
+   "say": "Who loaded the network, polled SCADA, tripped the line, was refused the islanding switch, ran the forecasts, the contingency scan and the dispatch, in a hash chain.",
+   "calls": [
+    {
+     "key": "audit",
+     "as": "manager",
+     "method": "GET",
+     "path": "/v1/audit?limit=12"
+    }
+   ]
+  }
+ ]
+}
