@@ -16,8 +16,9 @@ forecast wind speed; load's baseline is the same time last week.
 | 102 | 19.1 | 59.8 | 134.7 | 78.2 | 356.6 | 89.7 | 26.5 | 38.2 | 72% |
 | 103 | 14.8 | 74.3 | 132.7 | 57.5 | 319.0 | 75.8 | 25.0 | 39.6 | 75% |
 
-The models beat persistence by a wide margin and the clear-sky formula easily. Wind only matches the power curve, which is how the
-generator makes wind: the model learns the formula back, and the page says so.
+The models beat persistence by a wide margin and the clear-sky formula easily. Wind beats the power curve on forecast speed by 12–25%
+here (and only barely on the demo network, 46.9 against 49.5 MW): the generator scales wind speed per site, which the plain curve does
+not know and the model learns from the history.
 
 ## 2. The intraday update at 12:00
 

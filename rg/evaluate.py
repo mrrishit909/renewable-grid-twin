@@ -66,8 +66,9 @@ forecast wind speed; load's baseline is the same time last week.
 
 {table(["network (seed)", "solar", "persistence", "clear sky", "wind", "persistence", "power curve", "load", "last week", "load inside 80% band"], fc_rows)}
 
-The models beat persistence by a wide margin and the clear-sky formula easily. Wind only matches the power curve, which is how the
-generator makes wind: the model learns the formula back, and the page says so.
+The models beat persistence by a wide margin and the clear-sky formula easily. Wind beats the power curve on forecast speed by 12–25%
+here (and only barely on the demo network, 46.9 against 49.5 MW): the generator scales wind speed per site, which the plain curve does
+not know and the model learns from the history.
 
 ## 2. The intraday update at 12:00
 
